@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waysiemens Vs ZZombi</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #333; /* Темный фон */
+            color: white;
+        }
+        canvas {
+            display: block;
+        }
+        .timer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            font-family: 'Arial', sans-serif;
+            z-index: 10;
+        }
+        .win-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: green;
+            font-family: 'Arial', sans-serif;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="timer" id="timer">10:00</div>
+    <div class="win-message" id="winMessage">Победа! Вы выжили!</div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // Устанавливаем размеры холста
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Игровые переменные
+        const player = { x: canvas.width / 2, y: canvas.height / 2, speed: 5, size: 20 };
+        const zombies = [];
+        const obstacles = [];
+        const zombieSpeed = 2;
+        const obstacleSpeed = 1;
+        const obstaclesCount = 5;
+        let lastTime = 0;
+        let timer = 9999;  // 10 минут (в секундах)
+        let gameOver = false;
+
+        // Обработчик движения игрока
+        let keys = {};
+        window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+        window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+        // Зомби
+        function createZombie() {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            zombies.push({ x, y, size: 30 });
+        }
+
+        function moveZombies() {
+            zombies.forEach(zombie => {
+                const dx = player.x - zombie.x;
+                const dy = player.y - zombie.y;
+                const angle = Math.atan2(dy, dx);
+                zombie.x += Math.cos(angle) * zombieSpeed;
+                zombie.y += Math.sin(angle) * zombieSpeed;
+            });
+        }
+
+        // Создание движущихся препятствий
+        function createObstacles() {
+            for (let i = 0; i < obstaclesCount; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                obstacles.push({ x, y, size: 30 });
+            }
+        }
+
+        // Движение препятствий
+        function moveObstacles() {
+            obstacles.forEach(obstacle => {
+                const dx = player.x - obstacle.x;
+                const dy = player.y - obstacle.y;
+                const angle = Math.atan2(dy, dx);
+                obstacle.x += Math.cos(angle) * obstacleSpeed;
+                obstacle.y += Math.sin(angle) * obstacleSpeed;
+            });
+        }
+
+        // Отображение игрока
+        function drawPlayer() {
+            ctx.fillStyle = 'green';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Отображение зомби
+        function drawZombies() {
+            ctx.fillStyle = 'red';
+            zombies.forEach(zombie => {
+                ctx.beginPath();
+                ctx.arc(zombie.x, zombie.y, zombie.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Отображение препятствий
+        function drawObstacles() {
+            ctx.fillStyle = 'brown';
+            obstacles.forEach(obstacle => {
+                ctx.beginPath();
+                ctx.arc(obstacle.x, obstacle.y, obstacle.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Отображение таймера
+        function updateTimer() {
+            const minutes = Math.floor(timer / 60);
+            const seconds = timer % 60;
+            document.getElementById("timer").textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            if (timer <= 0 && !gameOver) {
+                gameOver = true;
+                document.getElementById("winMessage").style.display = 'block';
+            } else {
+                timer--;
+            }
+        }
+
+        // Отображение и движение игрока
+        function movePlayer() {
+            if (keys['ArrowUp'] || keys['KeyW']) player.y -= player.speed;
+            if (keys['ArrowDown'] || keys['KeyS']) player.y += player.speed;
+            if (keys['ArrowLeft'] || keys['KeyA']) player.x -= player.speed;
+            if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
+        }
+
+        // Проверка столкновений с препятствиями
+        function checkCollisionsWithObstacles() {
+            obstacles.forEach((obstacle, index) => {
+                const dx = player.x - obstacle.x;
+                const dy = player.y - obstacle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < player.size + obstacle.size) {
+                    gameOver = true;
+                    alert("Вы были пойманы движущимся препятствием!");
+                    obstacles.splice(index, 1);  // Удаляем препятствие при столкновении
+                    document.getElementById("winMessage").style.display = 'none';
+                }
+            });
+        }
+
+        // Проверка столкновений с зомби
+        function checkCollisionsWithZombies() {
+            zombies.forEach((zombie, index) => {
+                const dx = player.x - zombie.x;
+                const dy = player.y - zombie.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < player.size + zombie.size) {
+                    gameOver = true;
+                    alert("Вы были съедены зомби!");
+                    zombies.splice(index, 1);  // Удаляем зомби при столкновении
+                    document.getElementById("winMessage").style.display = 'none';
+                }
+            });
+        }
+
+        // Основной игровой цикл
+        function gameLoop(timestamp) {
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            if (gameOver) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            movePlayer();
+            moveZombies();
+            moveObstacles();
+            checkCollisionsWithObstacles();
+            checkCollisionsWithZombies();
+            updateTimer();
+
+            drawPlayer();
+            drawZombies();
+            drawObstacles();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Создание зомби через каждые 3 секунды
+        setInterval(createZombie, 3000);
+
+        // Создание препятствий
+        createObstacles();
+
+        // Запуск игры
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
